@@ -4,6 +4,14 @@ import android.os.Build
 import android.view.View
 import io.github.libxposed.api.XposedInterface
 
+/**
+ * Intercepts PrivateSpaceContainerView.updateData(AppInfo[]).
+ *
+ * Replaces whatever Nothing Launcher passes (hidden main-user apps)
+ * with actual apps from the Android 15 private space profile.
+ * If no private space profile exists or it's locked (quiet mode),
+ * falls through to the original behavior.
+ */
 class UpdateDataHooker : XposedInterface.Hooker {
 
     override fun intercept(chain: XposedInterface.Chain): Any? {
@@ -15,19 +23,14 @@ class UpdateDataHooker : XposedInterface.Hooker {
 
         @Suppress("UNCHECKED_CAST")
         val originalApps = chain.getArg(0) as? Array<Any?> ?: return chain.proceed()
+        val componentType = originalApps.javaClass.componentType ?: return chain.proceed()
 
         val privateApps = PrivateSpaceHelper.queryPrivateSpaceApps(
             view.context,
             view.javaClass.classLoader,
         ) ?: return chain.proceed()
 
-        val componentType = originalApps.javaClass.componentType ?: return chain.proceed()
-
-        @Suppress("UNCHECKED_CAST")
-        val replacement = java.lang.reflect.Array
-            .newInstance(componentType, privateApps.size) as Array<Any?>
-        privateApps.forEachIndexed { i, app -> replacement[i] = app }
-
+        val replacement = PrivateSpaceHelper.buildAppInfoArray(privateApps, componentType)
         return chain.proceed(arrayOf(replacement))
     }
 }
