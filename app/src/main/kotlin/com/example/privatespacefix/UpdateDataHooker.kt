@@ -40,6 +40,11 @@ class UpdateDataHooker : XposedInterface.Hooker {
         return chain.proceed(arrayOf(replacement))
     }
 
+    /**
+     * Query actual apps installed in the Android 15 private space profile
+     * via LauncherApps, then construct AppInfo objects using the launcher's
+     * own constructor: AppInfo(Context, LauncherActivityInfo, UserHandle).
+     */
     @RequiresApi(Build.VERSION_CODES.VANILLA_ICE_CREAM)
     private fun queryPrivateSpaceApps(
         context: Context,
@@ -51,35 +56,20 @@ class UpdateDataHooker : XposedInterface.Hooker {
         if (activities.isEmpty()) return emptyList()
 
         val appInfoClass = classLoader.loadClass("com.android.launcher3.model.data.AppInfo")
+        val launcherActivityInfoClass = Class.forName("android.content.pm.LauncherActivityInfo")
 
+        // Nothing Launcher's AppInfo(Context, LauncherActivityInfo, UserHandle)
         val constructor = runCatching {
-            appInfoClass.constructors.firstOrNull { ctor ->
-                val params = ctor.parameterTypes
-                params.size >= 2 &&
-                    params[0].name.contains("LauncherActivityInfo") &&
-                    params[1] == UserHandle::class.java
-            }?.also { it.isAccessible = true }
+            appInfoClass.getDeclaredConstructor(
+                Context::class.java,
+                launcherActivityInfoClass,
+                UserHandle::class.java,
+            ).also { it.isAccessible = true }
         }.getOrNull() ?: return null
-
-        val um = context.getSystemService(UserManager::class.java) ?: return null
-        val isQuietMode = um.isQuietModeEnabled(privateUser)
 
         return activities.mapNotNull { activityInfo ->
             runCatching {
-                val params = constructor.parameterTypes
-                when (params.size) {
-                    2 -> constructor.newInstance(activityInfo, privateUser)
-                    3 -> constructor.newInstance(activityInfo, privateUser, isQuietMode)
-                    else -> {
-                        val args = arrayOfNulls<Any>(params.size)
-                        args[0] = activityInfo
-                        args[1] = privateUser
-                        if (params.size > 2 && params[2] == Boolean::class.javaPrimitiveType) {
-                            args[2] = isQuietMode
-                        }
-                        constructor.newInstance(*args)
-                    }
-                }
+                constructor.newInstance(context, activityInfo, privateUser)
             }.getOrNull()
         }
     }
