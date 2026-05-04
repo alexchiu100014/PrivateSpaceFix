@@ -16,6 +16,10 @@ class MainModule : XposedModule() {
 
         val cl = param.defaultClassLoader
 
+        hookUpdateData(cl)
+    }
+
+    private fun hookUpdateData(cl: ClassLoader) {
         val appInfoClass = cl.loadClass("com.android.launcher3.model.data.AppInfo")
         val appInfoArrayClass = java.lang.reflect.Array
             .newInstance(appInfoClass, 0)
