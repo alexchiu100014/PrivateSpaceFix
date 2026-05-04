@@ -42,7 +42,7 @@ android {
 
 dependencies {
     // libxposed API — compile-only，執行時由 LSPosed framework 提供
-    compileOnly("io.github.libxposed:api:100")
+    compileOnly("io.github.libxposed:api:101")
 
     // AndroidX annotation（@RequiresApi 等）
     compileOnly("androidx.annotation:annotation:1.7.1")
