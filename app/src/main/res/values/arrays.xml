@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Xposed 注入作用域：只作用於 Nothing Launcher。
+        若實際 package name 不同，可執行：
+            adb shell pm list packages | grep nothing
+        再更新此處。
+    -->
+    <string-array name="xposed_scope">
+        <item>com.nothing.launcher</item>
+    </string-array>
+</resources>
