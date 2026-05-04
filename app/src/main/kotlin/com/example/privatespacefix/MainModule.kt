@@ -24,12 +24,17 @@ class MainModule : XposedModule() {
         val containerClass = cl.loadClass(
             "com.nothing.launcher.privatespace.view.PrivateSpaceContainerView"
         )
-        val updateDataMethod = containerClass.getDeclaredMethod(
-            "updateData",
-            appInfoArrayClass
-        )
 
-        hook(updateDataMethod)
-            .intercept(UpdateDataHooker())
+        // Hook 1: Replace data whenever updateData is called (by us or by
+        // Nothing's pipeline) with actual private space profile apps.
+        val updateDataMethod = containerClass.getDeclaredMethod(
+            "updateData", appInfoArrayClass
+        )
+        hook(updateDataMethod).intercept(UpdateDataHooker())
+
+        // Hook 2: After the view inflates, trigger updateData ourselves
+        // since Nothing's StateFlow won't emit when hidden-apps is empty.
+        val onFinishInflateMethod = containerClass.getDeclaredMethod("onFinishInflate")
+        hook(onFinishInflateMethod).intercept(ViewInitHooker(updateDataMethod, appInfoClass))
     }
 }
